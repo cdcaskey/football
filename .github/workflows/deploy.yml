@@ -1,0 +1,58 @@
+name: Deploy next match information
+
+on:
+  push:
+    branches: ["main"] # Run on pushes to main
+
+  schedule:
+    - cron: "00 07 * * *" # Run every day at 7am UTC
+
+  workflow_dispatch: # Allow manual running from actions page
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+    
+      - name: Set up environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          chmod +x .github/scripts/select_match.sh
+    
+      - name: Set match ID
+        run: |
+          mkdir deploy
+          MATCH_ID=$(.github/scripts/select_match.sh)
+          echo "Using match ID: $MATCH_ID"
+          sed "s/{{match}}/${MATCH_ID}/g" match-page.html > deploy/index.html
+    
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+    
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "deploy"
+    
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
